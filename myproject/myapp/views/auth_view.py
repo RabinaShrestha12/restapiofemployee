@@ -3,8 +3,9 @@ from rest_framework.response import Response
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import permissions
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework import status
+from django.contrib.auth import authenticate
 
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
@@ -22,6 +23,10 @@ def register_user(request):
 
     if User.objects.filter(username=username).exists():
         return Response({'err':"email is already exists and used another"})
+    
+    elif User.objects.filter(username=username).exists():
+        return Response({'err':"Invalid username"}, status=status.HTTP_400_BAD_REQUEST)
+    
     try:
         User.objects.create_user(
             username = username,
@@ -31,3 +36,25 @@ def register_user(request):
         return Response({'msg':"user register successfully"}, status=status.HTTP_200_OK)
     except:
         return Response({'err': "Failed to Register user"}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+   
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_user(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+    
+    if not username:
+        return Response({'err':"username is required"})
+    
+    if not password:
+        return Response({'err':"password is required"},status=status.HTTP_400_BAD_REQUEST)
+
+    user = authenticate(username=username, password=password)
+    if user is not None:
+        tokens = get_tokens_for_user(user)
+        return Response({'msg':"user login successfully", 'tokens':tokens}, status=status.HTTP_200_OK)
+    
+    else:
+        return Response({'err':"Incorrect password"},status= status.HTTP_400_BAD_REQUEST)
